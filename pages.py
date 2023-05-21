@@ -1,11 +1,15 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QSizePolicy, QTextEdit, QComboBox, QGridLayout, QListWidget, QListWidgetItem
 from PyQt5.QtCore import QDateTime, Qt, QTimer
 from styles import Styles
+from modules import InfectedDevice
 import datetime
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.victims = {}
+
         # Layouts
 
         self.main_layout = QVBoxLayout()
@@ -58,9 +62,12 @@ class MainWindow(QWidget):
         self.filter_button = QPushButton("Фильтр")
         self.filter_button.setFixedSize(200, 40)
         self.filter_button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.filter_button.pressed.connect(self.do_filter)
         self.clear_filter_button = QPushButton("Отчистить")
         self.clear_filter_button.setFixedSize(200, 40)
         self.clear_filter_button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.clear_filter_button.pressed.connect(self.clear_filter)
+        
         
         self.list_victims = QListWidget()
 
@@ -98,5 +105,70 @@ class MainWindow(QWidget):
     def update_time(self):
         self.time.setText(QDateTime.currentDateTime().toString().split()[3])
 
-    def add_to_list(self):
-        pass
+    def add_to_list(self, victim: InfectedDevice):
+        if victim.name not in self.victims:
+            label = f"{victim.name} | {victim.method} | {victim.ip} | {victim.country} | {'Online' if victim.status == True else f'Last online: {victim.last_online}'}"
+            self.victims[victim.name] = (victim, label)
+            self.update_list()
+        
+    def update_list(self, f=True):
+        if f:
+            self.type.clear()
+            self.country.clear()
+            self.status.clear()
+            self.search_string.setText("Поиск...")
+            self.type.addItem("Тип вируса")
+            self.country.addItem("Страна")
+            self.status.addItem("Статус")
+        self.list_victims.clear()
+        for i in self.victims:
+            victim = self.victims[i]
+            info = victim[0]
+            device = victim[1]
+            self.list_victims.addItem(device)
+            if f:
+                self.type.addItem(info.method)
+                self.country.addItem(info.country)
+                self.status.addItem("Online" if info.status == True else "Offline")
+
+    def clear_filter(self):
+        self.update_list()
+
+    def do_filter(self):
+        self.update_list(False)
+        k = 0
+        for i in range(self.list_victims.count()):
+            device = self.list_victims.item(i - k).text().split(" | ")
+            print(device)
+            if self.search_string.toPlainText() != "Поиск...":
+                if self.search_string.toPlainText() not in device[0]:
+                    s = self.list_victims.takeItem(i - k)
+                    del s
+                    k += 1
+                    continue
+            if self.type.currentText() != "Тип вируса":
+                if self.type.currentText() != device[1]:
+                    s = self.list_victims.takeItem(i - k)
+                    del s
+                    k += 1
+                    continue
+            if self.country.currentText() != "Страна":
+                if self.country.currentText() != device[3]:
+                    s = self.list_victims.takeItem(i - k)
+                    del s
+                    k += 1
+                    continue
+            if self.status.currentText() != "Статус":
+                if self.status.currentText() == "Online":
+                    if self.status.currentText() != device[-1]:
+                        s = self.list_victims.takeItem(i - k)
+                        del s
+                        k += 1
+                        continue
+                else:
+                    if device[-1] == "Online":
+                        s = self.list_victims.takeItem(i - k)
+                        del s
+                        k += 1
+                        continue
+        k = 0
